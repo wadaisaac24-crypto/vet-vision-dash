@@ -128,6 +128,9 @@ function RootComponent() {
             <main className="flex-1 p-4 md:p-6">
               <Outlet />
             </main>
+            <footer className="border-t border-border px-4 py-4 text-center text-xs text-muted-foreground md:px-6">
+              Farm Alert Command Center powered by Technology Department 2026 (Confidential)
+            </footer>
           </div>
         </div>
       </SidebarProvider>
