@@ -1,4 +1,4 @@
-import { inventory as mockInventory, type StockStatus } from "@/lib/dashboard-data";
+import type { StockStatus } from "@/lib/dashboard-data";
 import { cn } from "@/lib/utils";
 
 const badge: Record<StockStatus, string> = {
@@ -14,7 +14,10 @@ const label: Record<StockStatus, string> = {
 };
 
 export function InventoryTable({ rows }: { rows?: { sku: string; product: string; center: string; qty: number; status: StockStatus }[] }) {
-  const data = rows && rows.length > 0 ? rows : mockInventory;
+  const data = rows ?? [];
+  if (data.length === 0) {
+    return <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center text-sm text-muted-foreground">No live inventory rows were returned by ERP.</div>;
+  }
   return (
     <div className="overflow-hidden rounded-lg border border-border">
       <table className="w-full text-sm">

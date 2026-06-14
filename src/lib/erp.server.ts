@@ -63,6 +63,16 @@ export type SalesInvoice = {
   territory?: string | null;
 };
 
+export type SalesInvoiceItem = {
+  parent: string;
+  item_code: string;
+  item_name?: string;
+  qty?: number;
+  stock_qty?: number;
+  warehouse?: string | null;
+  amount?: number;
+};
+
 export async function fetchRecentSalesInvoices(limit = 0): Promise<SalesInvoice[]> {
   const fields = JSON.stringify([
     "name",
@@ -90,6 +100,25 @@ export async function fetchRecentSalesInvoices(limit = 0): Promise<SalesInvoice[
   return (data?.data ?? []) as SalesInvoice[];
 }
 
+export async function fetchSalesInvoiceItems(invoiceNames: string[]): Promise<SalesInvoiceItem[]> {
+  if (invoiceNames.length === 0) return [];
+  const rows: SalesInvoiceItem[] = [];
+  for (let offset = 0; offset < invoiceNames.length; offset += 100) {
+    const names = invoiceNames.slice(offset, offset + 100);
+    const params = new URLSearchParams({
+      fields: JSON.stringify(["parent", "item_code", "item_name", "qty", "stock_qty", "warehouse", "amount"]),
+      filters: JSON.stringify([
+        ["parent", "in", names],
+        ["docstatus", "=", 1],
+      ]),
+      limit_page_length: "0",
+    });
+    const data = await erpFetch(`/api/resource/Sales Invoice Item?${params.toString()}`);
+    rows.push(...((data?.data ?? []) as SalesInvoiceItem[]));
+  }
+  return rows;
+}
+
 export type StockRow = {
   item_code: string;
   item_name?: string;
@@ -98,14 +127,52 @@ export type StockRow = {
   [k: string]: unknown;
 };
 
-export async function fetchStockBalance(company = "FarmAlert"): Promise<StockRow[]> {
+export async function fetchCurrentStock(): Promise<StockRow[]> {
+  const params = new URLSearchParams({
+    fields: JSON.stringify(["item_code", "warehouse", "actual_qty"]),
+    limit_page_length: "0",
+  });
+  const data = await erpFetch(`/api/resource/Bin?${params.toString()}`);
+  const bins = (data?.data ?? []) as { item_code?: string; warehouse?: string; actual_qty?: number }[];
+  const itemCodes = [...new Set(bins.map((bin) => bin.item_code).filter((code): code is string => Boolean(code)))];
+  const names = new Map<string, string>();
+  for (let offset = 0; offset < itemCodes.length; offset += 100) {
+    const paramsForItems = new URLSearchParams({
+      fields: JSON.stringify(["item_code", "item_name"]),
+      filters: JSON.stringify([["item_code", "in", itemCodes.slice(offset, offset + 100)]]),
+      limit_page_length: "0",
+    });
+    const itemData = await erpFetch(`/api/resource/Item?${paramsForItems.toString()}`);
+    for (const item of (itemData?.data ?? []) as { item_code?: string; item_name?: string }[]) {
+      if (item.item_code) names.set(item.item_code, item.item_name ?? item.item_code);
+    }
+  }
+  return bins
+    .filter((bin): bin is { item_code: string; warehouse?: string; actual_qty?: number } => Boolean(bin.item_code))
+    .map((bin) => ({ item_code: bin.item_code, item_name: names.get(bin.item_code), warehouse: bin.warehouse, bal_qty: Number(bin.actual_qty ?? 0) }));
+}
+
+async function fetchCompanyName(): Promise<string> {
+  const configured = process.env.FARMALERT_ERP_COMPANY?.trim();
+  if (configured) return configured;
+  const params = new URLSearchParams({ fields: JSON.stringify(["name"]), limit_page_length: "20" });
+  const data = await erpFetch(`/api/resource/Company?${params.toString()}`);
+  const companies = (data?.data ?? []) as { name?: string }[];
+  const preferred = companies.find((company) => /farm\s*alert/i.test(company.name ?? ""));
+  const name = preferred?.name ?? companies[0]?.name;
+  if (!name) throw new Error("No ERP company is available for the Stock Balance report");
+  return name;
+}
+
+export async function fetchStockBalance(company?: string): Promise<StockRow[]> {
   const today = new Date().toISOString().slice(0, 10);
+  const companyName = company ?? await fetchCompanyName();
   const body = {
     report_name: "Stock Balance",
     filters: {
       from_date: "2026-01-01",
       to_date: today,
-      company,
+      company: companyName,
       valuation_field_type: "Currency",
     },
   };

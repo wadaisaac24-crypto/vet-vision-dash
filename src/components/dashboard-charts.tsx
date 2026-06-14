@@ -7,15 +7,12 @@ import {
   XAxis,
   YAxis,
   Legend,
-  Line,
-  LineChart,
   Area,
   AreaChart,
 } from "recharts";
 import {
   partnerSalesByRegion,
   customerActivity,
-  inventoryForecast,
 } from "@/lib/dashboard-data";
 
 const tooltipStyle = {
@@ -57,10 +54,15 @@ export function CustomerActivityChart() {
   );
 }
 
-export function InventoryForecastChart() {
+export type ForecastRow = { center: string; monthlyDemand: number; onHand: number; coverageDays: number | null; reorderQty: number };
+
+export function InventoryForecastChart({ data }: { data?: ForecastRow[] }) {
+  if (!data || data.length === 0) {
+    return <div className="flex h-[220px] items-center justify-center text-sm text-muted-foreground">Awaiting 3-month ERP sales history.</div>;
+  }
   return (
     <ResponsiveContainer width="100%" height={220}>
-      <AreaChart data={inventoryForecast} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+      <AreaChart data={data} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
         <defs>
           <linearGradient id="forecastFill" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--brand-green)" stopOpacity={0.35} />
@@ -68,12 +70,12 @@ export function InventoryForecastChart() {
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-        <XAxis dataKey="week" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
+        <XAxis dataKey="center" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
         <Tooltip contentStyle={tooltipStyle} />
         <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />
-        <Area type="monotone" dataKey="forecast" name="Forecast" stroke="var(--brand-green)" strokeWidth={2} fill="url(#forecastFill)" />
-        <Area type="monotone" dataKey="actual" name="Actual" stroke="var(--brand-navy)" strokeWidth={2.5} fill="transparent" />
+        <Area type="monotone" dataKey="monthlyDemand" name="Forecast monthly demand" stroke="var(--brand-green)" strokeWidth={2} fill="url(#forecastFill)" />
+        <Area type="monotone" dataKey="onHand" name="Current stock" stroke="var(--brand-navy)" strokeWidth={2.5} fill="transparent" />
       </AreaChart>
     </ResponsiveContainer>
   );

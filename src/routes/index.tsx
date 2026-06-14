@@ -19,8 +19,6 @@ import { InventoryTable } from "@/components/inventory-table";
 import {
   kpis,
   formatNaira,
-  outOfStockByCenter as mockOosByCenter,
-  redAlerts,
 } from "@/lib/dashboard-data";
 import { useErpOverview } from "@/hooks/use-erp-overview";
 import { cn } from "@/lib/utils";
@@ -45,7 +43,8 @@ function OverviewPage() {
     : kpis.outOfStockCount;
   const returningCount = live ? live.returningCustomers : kpis.activeReturningCustomers.value;
   const newCustomers = live ? live.newCustomersThisWeek : kpis.newCustomers.value;
-  const oosByCenter = live ? live.outOfStockByCenter : mockOosByCenter;
+  const oosByCenter = live?.outOfStockByCenter ?? [];
+  const alerts = live?.alerts ?? [];
 
   const lastUpdated = dataUpdatedAt
     ? new Date(dataUpdatedAt).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
@@ -216,7 +215,7 @@ function OverviewPage() {
           <h2 className="text-base font-semibold text-foreground">Inventory Forecasting</h2>
           <p className="text-xs text-muted-foreground">7-week demand projection (cartons)</p>
           <div className="mt-3">
-            <InventoryForecastChart />
+            <InventoryForecastChart data={live?.forecast} />
           </div>
         </div>
       </section>
@@ -261,7 +260,12 @@ function OverviewPage() {
       <section className="rounded-xl border border-destructive/20 bg-destructive/5 p-5">
         <h2 className="text-sm font-semibold text-destructive">Active Red Alerts</h2>
         <ul className="mt-3 space-y-2">
-          {redAlerts.map((a) => (
+          {alerts.length === 0 && (
+            <li className="rounded-md bg-card px-3 py-3 text-sm text-muted-foreground">
+              {live ? "No current stock alerts." : "Waiting for live ERP alerts…"}
+            </li>
+          )}
+          {alerts.slice(0, 8).map((a) => (
             <li key={a.id} className="flex items-center justify-between rounded-md bg-card px-3 py-2 text-sm">
               <div className="flex items-center gap-2">
                 <span
@@ -270,9 +274,9 @@ function OverviewPage() {
                     a.severity === "critical" ? "bg-destructive" : "bg-warn",
                   )}
                 />
-                <span className="text-foreground">{a.title}</span>
+                <span className="text-foreground">{a.title} · {a.center}</span>
               </div>
-              <span className="text-xs text-muted-foreground">{a.time}</span>
+              <span className="text-xs text-muted-foreground">{a.detail}</span>
             </li>
           ))}
         </ul>
