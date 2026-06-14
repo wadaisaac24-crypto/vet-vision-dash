@@ -127,6 +127,31 @@ export type StockRow = {
   [k: string]: unknown;
 };
 
+export async function fetchCurrentStock(): Promise<StockRow[]> {
+  const params = new URLSearchParams({
+    fields: JSON.stringify(["item_code", "warehouse", "actual_qty"]),
+    limit_page_length: "0",
+  });
+  const data = await erpFetch(`/api/resource/Bin?${params.toString()}`);
+  const bins = (data?.data ?? []) as { item_code?: string; warehouse?: string; actual_qty?: number }[];
+  const itemCodes = [...new Set(bins.map((bin) => bin.item_code).filter((code): code is string => Boolean(code)))];
+  const names = new Map<string, string>();
+  for (let offset = 0; offset < itemCodes.length; offset += 100) {
+    const paramsForItems = new URLSearchParams({
+      fields: JSON.stringify(["item_code", "item_name"]),
+      filters: JSON.stringify([["item_code", "in", itemCodes.slice(offset, offset + 100)]]),
+      limit_page_length: "0",
+    });
+    const itemData = await erpFetch(`/api/resource/Item?${paramsForItems.toString()}`);
+    for (const item of (itemData?.data ?? []) as { item_code?: string; item_name?: string }[]) {
+      if (item.item_code) names.set(item.item_code, item.item_name ?? item.item_code);
+    }
+  }
+  return bins
+    .filter((bin): bin is { item_code: string; warehouse?: string; actual_qty?: number } => Boolean(bin.item_code))
+    .map((bin) => ({ item_code: bin.item_code, item_name: names.get(bin.item_code), warehouse: bin.warehouse, bal_qty: Number(bin.actual_qty ?? 0) }));
+}
+
 async function fetchCompanyName(): Promise<string> {
   const configured = process.env.FARMALERT_ERP_COMPANY?.trim();
   if (configured) return configured;
