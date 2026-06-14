@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { fetchRecentSalesInvoices, fetchSalesInvoiceItems, fetchStockBalance, type SalesInvoice, type SalesInvoiceItem, type StockRow } from "./erp.server";
+import { fetchCurrentStock, fetchRecentSalesInvoices, fetchSalesInvoiceItems, fetchStockBalance, type SalesInvoice, type SalesInvoiceItem, type StockRow } from "./erp.server";
 
 // Map ERP warehouse names to dashboard region/center labels.
 // Adjust the substrings on the right to match the user's actual warehouse naming.
@@ -171,11 +171,11 @@ export const getErpOverview = createServerFn({ method: "GET" }).handler(async ()
   try {
     const [invoices, stock] = await Promise.all([
       fetchRecentSalesInvoices(0),
-      fetchStockBalance(),
+      fetchCurrentStock().catch(() => fetchStockBalance()),
     ]);
     const threeMonthsAgo = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
     const recentInvoiceNames = invoices.filter((invoice) => invoice.posting_date >= threeMonthsAgo).map((invoice) => invoice.name);
-    const items = await fetchSalesInvoiceItems(recentInvoiceNames);
+    const items = await fetchSalesInvoiceItems(recentInvoiceNames).catch(() => [] as SalesInvoiceItem[]);
     return summarise(invoices, stock, items);
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
