@@ -8,8 +8,6 @@ import {
   Siren,
   Settings as SettingsIcon,
 } from "lucide-react";
-import logoAsset from "@/assets/farm-alert-logo.jpg.asset.json";
-
 import {
   Sidebar,
   SidebarContent,
@@ -40,8 +38,8 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2.5 px-2 py-3">
-          <div className="flex h-9 w-9 items-center justify-center overflow-hidden rounded-md bg-brand-navy">
-            <img src={logoAsset.url} alt="Farm Alert" className="h-full w-full object-cover" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-green text-xs font-extrabold text-brand-green-foreground" aria-label="Farm Alert">
+            FA
           </div>
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-semibold text-sidebar-foreground">Farm Alert</span>
