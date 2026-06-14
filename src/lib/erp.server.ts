@@ -63,6 +63,16 @@ export type SalesInvoice = {
   territory?: string | null;
 };
 
+export type SalesInvoiceItem = {
+  parent: string;
+  item_code: string;
+  item_name?: string;
+  qty?: number;
+  stock_qty?: number;
+  warehouse?: string | null;
+  amount?: number;
+};
+
 export async function fetchRecentSalesInvoices(limit = 0): Promise<SalesInvoice[]> {
   const fields = JSON.stringify([
     "name",
@@ -90,6 +100,25 @@ export async function fetchRecentSalesInvoices(limit = 0): Promise<SalesInvoice[
   return (data?.data ?? []) as SalesInvoice[];
 }
 
+export async function fetchSalesInvoiceItems(invoiceNames: string[]): Promise<SalesInvoiceItem[]> {
+  if (invoiceNames.length === 0) return [];
+  const rows: SalesInvoiceItem[] = [];
+  for (let offset = 0; offset < invoiceNames.length; offset += 100) {
+    const names = invoiceNames.slice(offset, offset + 100);
+    const params = new URLSearchParams({
+      fields: JSON.stringify(["parent", "item_code", "item_name", "qty", "stock_qty", "warehouse", "amount"]),
+      filters: JSON.stringify([
+        ["parent", "in", names],
+        ["docstatus", "=", 1],
+      ]),
+      limit_page_length: "0",
+    });
+    const data = await erpFetch(`/api/resource/Sales Invoice Item?${params.toString()}`);
+    rows.push(...((data?.data ?? []) as SalesInvoiceItem[]));
+  }
+  return rows;
+}
+
 export type StockRow = {
   item_code: string;
   item_name?: string;
@@ -98,14 +127,27 @@ export type StockRow = {
   [k: string]: unknown;
 };
 
-export async function fetchStockBalance(company = "FarmAlert"): Promise<StockRow[]> {
+async function fetchCompanyName(): Promise<string> {
+  const configured = process.env.FARMALERT_ERP_COMPANY?.trim();
+  if (configured) return configured;
+  const params = new URLSearchParams({ fields: JSON.stringify(["name"]), limit_page_length: "20" });
+  const data = await erpFetch(`/api/resource/Company?${params.toString()}`);
+  const companies = (data?.data ?? []) as { name?: string }[];
+  const preferred = companies.find((company) => /farm\s*alert/i.test(company.name ?? ""));
+  const name = preferred?.name ?? companies[0]?.name;
+  if (!name) throw new Error("No ERP company is available for the Stock Balance report");
+  return name;
+}
+
+export async function fetchStockBalance(company?: string): Promise<StockRow[]> {
   const today = new Date().toISOString().slice(0, 10);
+  const companyName = company ?? await fetchCompanyName();
   const body = {
     report_name: "Stock Balance",
     filters: {
       from_date: "2026-01-01",
       to_date: today,
-      company,
+      company: companyName,
       valuation_field_type: "Currency",
     },
   };
