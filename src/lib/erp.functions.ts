@@ -33,6 +33,7 @@ export type ErpOverview = {
   totalSalesToday: number;
   invoiceCountToday: number;
   totalRevenueAllTime: number;
+  totalRevenueMtd: number;
   totalInvoicesAllTime: number;
   outstandingTotal: number;
   newCustomersThisWeek: number;
@@ -54,7 +55,12 @@ function summarise(invoices: SalesInvoice[], stock: StockRow[]): ErpOverview {
 
   const todayInvoices = invoices.filter((i) => i.posting_date >= today);
   const totalSalesToday = todayInvoices.reduce((s, i) => s + (i.grand_total ?? 0), 0);
-  const totalRevenueAllTime = invoices.reduce((s, i) => s + (i.grand_total ?? 0), 0);
+  const yearStart = "2026-01-01";
+  const yearInvoices = invoices.filter((i) => i.posting_date >= yearStart && i.posting_date <= today);
+  const totalRevenueAllTime = yearInvoices.reduce((s, i) => s + Number(i.grand_total ?? 0), 0);
+  const monthStart = today.slice(0, 7) + "-01";
+  const monthInvoices = yearInvoices.filter((i) => i.posting_date >= monthStart);
+  const totalRevenueMtd = monthInvoices.reduce((s, i) => s + Number(i.grand_total ?? 0), 0);
   const outstandingTotal = invoices.reduce((s, i) => s + (i.outstanding_amount ?? 0), 0);
 
   // Customer first-seen detection from invoice history we have.
@@ -68,10 +74,8 @@ function summarise(invoices: SalesInvoice[], stock: StockRow[]): ErpOverview {
   const returningCustomers = firstSeen.size - newCustomersThisWeek;
 
   // Partner sales by region (this month).
-  const monthStart = today.slice(0, 7) + "-01";
   const byRegion = new Map<string, number>();
-  for (const inv of invoices) {
-    if (inv.posting_date < monthStart) continue;
+  for (const inv of monthInvoices) {
     const region = regionFor(inv.set_warehouse, inv.territory);
     byRegion.set(region, (byRegion.get(region) ?? 0) + (inv.grand_total ?? 0));
   }
@@ -81,7 +85,7 @@ function summarise(invoices: SalesInvoice[], stock: StockRow[]): ErpOverview {
     .slice(0, 8);
 
   // Inventory rows + out-of-stock counts.
-  const inventory = stock.slice(0, 20).map((r) => {
+  const inventory = stock.map((r) => {
     const qty = Number(r.bal_qty ?? 0);
     const status: "out" | "low" | "ok" = qty <= 0 ? "out" : qty < 10 ? "low" : "ok";
     return {
@@ -110,7 +114,8 @@ function summarise(invoices: SalesInvoice[], stock: StockRow[]): ErpOverview {
     totalSalesToday,
     invoiceCountToday: todayInvoices.length,
     totalRevenueAllTime,
-    totalInvoicesAllTime: invoices.length,
+    totalRevenueMtd,
+    totalInvoicesAllTime: yearInvoices.length,
     outstandingTotal,
     newCustomersThisWeek,
     returningCustomers,
@@ -123,7 +128,7 @@ function summarise(invoices: SalesInvoice[], stock: StockRow[]): ErpOverview {
 export const getErpOverview = createServerFn({ method: "GET" }).handler(async (): Promise<ErpOverview> => {
   try {
     const [invoices, stock] = await Promise.all([
-      fetchRecentSalesInvoices(200),
+      fetchRecentSalesInvoices(0),
       fetchStockBalance().catch(() => [] as StockRow[]),
     ]);
     return summarise(invoices, stock);

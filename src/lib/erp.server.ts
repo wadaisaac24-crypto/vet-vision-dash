@@ -100,11 +100,10 @@ export type StockRow = {
 
 export async function fetchStockBalance(company = "FarmAlert"): Promise<StockRow[]> {
   const today = new Date().toISOString().slice(0, 10);
-  const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
   const body = {
     report_name: "Stock Balance",
     filters: {
-      from_date: monthAgo,
+      from_date: "2026-01-01",
       to_date: today,
       company,
       valuation_field_type: "Currency",
