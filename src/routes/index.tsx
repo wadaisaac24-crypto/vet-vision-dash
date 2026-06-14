@@ -45,7 +45,7 @@ function OverviewPage() {
     : kpis.outOfStockCount;
   const returningCount = live ? live.returningCustomers : kpis.activeReturningCustomers.value;
   const newCustomers = live ? live.newCustomersThisWeek : kpis.newCustomers.value;
-  const oosByCenter = live && live.outOfStockByCenter.length > 0 ? live.outOfStockByCenter : mockOosByCenter;
+  const oosByCenter = live ? live.outOfStockByCenter : mockOosByCenter;
 
   const lastUpdated = dataUpdatedAt
     ? new Date(dataUpdatedAt).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
@@ -82,9 +82,9 @@ function OverviewPage() {
       {/* KPIs */}
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <KpiCard
-          label="Total Revenue (All-Time)"
+          label="Total Revenue (2026 YTD)"
           value={formatNaira(live?.totalRevenueAllTime ?? 0)}
-          hint={live ? `${live.totalInvoicesAllTime} approved invoices` : "since first invoice"}
+          hint={live ? `${live.totalInvoicesAllTime} approved invoices since 1 Jan` : "Awaiting ERP"}
           icon={<Banknote className="h-4 w-4" />}
           tone="navy"
         />
