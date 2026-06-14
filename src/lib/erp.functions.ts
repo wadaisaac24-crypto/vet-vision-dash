@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 
-import { fetchRecentSalesInvoices, fetchStockBalance, type SalesInvoice, type StockRow } from "./erp.server";
+import { fetchRecentSalesInvoices, fetchSalesInvoiceItems, fetchStockBalance, type SalesInvoice, type SalesInvoiceItem, type StockRow } from "./erp.server";
 
 // Map ERP warehouse names to dashboard region/center labels.
 // Adjust the substrings on the right to match the user's actual warehouse naming.
@@ -47,9 +47,11 @@ export type ErpOverview = {
     status: "out" | "low" | "ok";
   }[];
   outOfStockByCenter: { center: string; count: number }[];
+  forecast: { center: string; monthlyDemand: number; onHand: number; coverageDays: number | null; reorderQty: number }[];
+  alerts: { id: string; title: string; detail: string; severity: "critical" | "warning"; center: string; sku: string; detectedAt: string }[];
 } | { ok: false; error: string };
 
-function summarise(invoices: SalesInvoice[], stock: StockRow[]): ErpOverview {
+function summarise(invoices: SalesInvoice[], stock: StockRow[], items: SalesInvoiceItem[]): ErpOverview {
   const today = new Date().toISOString().slice(0, 10);
   const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);
 
@@ -108,6 +110,44 @@ function summarise(invoices: SalesInvoice[], stock: StockRow[]): ErpOverview {
     .map(([center, count]) => ({ center, count }))
     .sort((a, b) => b.count - a.count);
 
+  const invoiceByName = new Map(invoices.map((invoice) => [invoice.name, invoice]));
+  const ninetyDaysAgo = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+  const demandByCenter = new Map<string, number>();
+  for (const item of items) {
+    const invoice = invoiceByName.get(item.parent);
+    if (!invoice || invoice.posting_date < ninetyDaysAgo) continue;
+    const center = regionFor(item.warehouse, invoice.territory);
+    demandByCenter.set(center, (demandByCenter.get(center) ?? 0) + Number(item.stock_qty ?? item.qty ?? 0));
+  }
+  const onHandByCenter = new Map<string, number>();
+  for (const row of inventory) onHandByCenter.set(row.center, (onHandByCenter.get(row.center) ?? 0) + Math.max(0, row.qty));
+  const centers = new Set([...demandByCenter.keys(), ...onHandByCenter.keys()]);
+  const forecast = [...centers].map((center) => {
+    const monthlyDemand = (demandByCenter.get(center) ?? 0) / 3;
+    const onHand = onHandByCenter.get(center) ?? 0;
+    const dailyDemand = monthlyDemand / 30;
+    return {
+      center,
+      monthlyDemand: +monthlyDemand.toFixed(1),
+      onHand: +onHand.toFixed(1),
+      coverageDays: dailyDemand > 0 ? +Math.floor(onHand / dailyDemand) : null,
+      reorderQty: +Math.max(0, monthlyDemand - onHand).toFixed(1),
+    };
+  }).sort((a, b) => b.reorderQty - a.reorderQty);
+
+  const detectedAt = new Date().toISOString();
+  const alerts = inventory
+    .filter((row) => row.status !== "ok")
+    .map((row) => ({
+      id: `${row.center}-${row.sku}`,
+      title: row.status === "out" ? `${row.product} is out of stock` : `${row.product} is running low`,
+      detail: `${row.sku} · ${row.qty.toLocaleString()} units on hand`,
+      severity: row.status === "out" ? "critical" as const : "warning" as const,
+      center: row.center,
+      sku: row.sku,
+      detectedAt,
+    }));
+
   return {
     ok: true,
     fetchedAt: new Date().toISOString(),
@@ -122,6 +162,8 @@ function summarise(invoices: SalesInvoice[], stock: StockRow[]): ErpOverview {
     partnerSalesByRegion,
     inventory,
     outOfStockByCenter,
+    forecast,
+    alerts,
   };
 }
 
@@ -129,9 +171,12 @@ export const getErpOverview = createServerFn({ method: "GET" }).handler(async ()
   try {
     const [invoices, stock] = await Promise.all([
       fetchRecentSalesInvoices(0),
-      fetchStockBalance().catch(() => [] as StockRow[]),
+      fetchStockBalance(),
     ]);
-    return summarise(invoices, stock);
+    const threeMonthsAgo = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
+    const recentInvoiceNames = invoices.filter((invoice) => invoice.posting_date >= threeMonthsAgo).map((invoice) => invoice.name);
+    const items = await fetchSalesInvoiceItems(recentInvoiceNames);
+    return summarise(invoices, stock, items);
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
