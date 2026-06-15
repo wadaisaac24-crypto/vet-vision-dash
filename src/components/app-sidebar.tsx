@@ -6,6 +6,7 @@ import {
   Boxes,
   Users,
   Siren,
+  Landmark,
   Settings as SettingsIcon,
 } from "lucide-react";
 import {
@@ -20,6 +21,7 @@ import {
   SidebarMenuItem,
   SidebarFooter,
 } from "@/components/ui/sidebar";
+import logoAsset from "@/assets/farm-alert-command-logo.jpeg.asset.json";
 
 const items = [
   { title: "Overview", url: "/", icon: LayoutDashboard },
@@ -28,6 +30,7 @@ const items = [
   { title: "Inventory", url: "/inventory", icon: Boxes },
   { title: "Customers", url: "/customers", icon: Users },
   { title: "Red Alerts", url: "/alerts", icon: Siren },
+  { title: "Accounting", url: "/accounting", icon: Landmark },
   { title: "Settings", url: "/settings", icon: SettingsIcon },
 ] as const;
 
@@ -38,9 +41,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border">
         <div className="flex items-center gap-2.5 px-2 py-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-brand-green text-xs font-extrabold text-brand-green-foreground" aria-label="Farm Alert">
-            FA
-          </div>
+          <img src={logoAsset.url} alt="Farm Alert" className="h-9 w-9 rounded-md object-cover object-left" />
           <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-semibold text-sidebar-foreground">Farm Alert</span>
             <span className="text-[11px] text-sidebar-foreground/60">Envisioning Animal Health</span>
