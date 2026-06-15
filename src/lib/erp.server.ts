@@ -132,19 +132,19 @@ export async function geocodeAddresses(addresses: string[]): Promise<Map<string,
   const mapsKey = process.env.GOOGLE_MAPS_API_KEY;
   const result = new Map<string, GeoPoint>();
   if (!lovableKey || !mapsKey) return result;
-  for (const address of addresses.slice(0, 60)) {
+  await Promise.all(addresses.slice(0, 60).map(async (address) => {
     const response = await fetch(`https://connector-gateway.lovable.dev/google_maps/maps/api/geocode/json?address=${encodeURIComponent(address)}`, {
       headers: { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": mapsKey },
     });
-    if (!response.ok) continue;
+    if (!response.ok) return;
     const body = await response.json() as { results?: { formatted_address?: string; geometry?: { location?: { lat?: number; lng?: number } }; address_components?: { long_name?: string; types?: string[] }[] }[] };
     const first = body.results?.[0];
     const lat = first?.geometry?.location?.lat;
     const lng = first?.geometry?.location?.lng;
-    if (typeof lat !== "number" || typeof lng !== "number") continue;
+    if (typeof lat !== "number" || typeof lng !== "number") return;
     const state = first?.address_components?.find((part) => part.types?.includes("administrative_area_level_1"))?.long_name ?? "Unknown state";
     result.set(address, { address: first?.formatted_address ?? address, lat, lng, state });
-  }
+  }));
   return result;
 }
 
