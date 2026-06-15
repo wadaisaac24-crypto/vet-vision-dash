@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { InventoryTable } from "@/components/inventory-table";
 import { CenterInventory } from "@/components/center-inventory";
 import { InventoryForecastChart } from "@/components/dashboard-charts";
 import { useErpOverview } from "@/hooks/use-erp-overview";

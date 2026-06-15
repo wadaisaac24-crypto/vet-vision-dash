@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AfricaMap } from "@/components/africa-map";
-import { regions } from "@/lib/dashboard-data";
 import { useErpOverview } from "@/hooks/use-erp-overview";
 
 export const Route = createFileRoute("/map")({

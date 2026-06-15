@@ -2,8 +2,11 @@ import { Bell, Search } from "lucide-react";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useErpOverview } from "@/hooks/use-erp-overview";
 
 export function TopBar() {
+  const { data } = useErpOverview();
+  const alertCount = data?.ok ? data.alerts.filter((alert) => alert.severity === "critical").length : 0;
   const today = new Date().toLocaleDateString("en-NG", {
     weekday: "long",
     day: "numeric",
@@ -31,7 +34,7 @@ export function TopBar() {
       <Button variant="ghost" size="icon" className="relative">
         <Bell className="h-5 w-5" />
         <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
-          3
+          {alertCount}
         </span>
       </Button>
 
@@ -40,7 +43,7 @@ export function TopBar() {
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
           <span className="relative inline-flex h-2 w-2 rounded-full bg-destructive" />
         </span>
-        <span className="text-xs font-semibold">3 Red Alerts</span>
+        <span className="text-xs font-semibold">{alertCount} Red Alerts</span>
       </div>
     </header>
   );
