@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { MapContainer, TileLayer, CircleMarker, Tooltip, Popup, LayersControl, LayerGroup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { regions, customerPoints } from "@/lib/dashboard-data";
+import { regions, customerPoints, type AlertLevel } from "@/lib/dashboard-data";
 
 const dotFill: Record<AlertLevel, string> = {
   critical: "#ef4444",
