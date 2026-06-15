@@ -61,6 +61,8 @@ export type SalesInvoice = {
   title?: string;
   set_warehouse?: string | null;
   territory?: string | null;
+  customer_address?: string | null;
+  address_display?: string | null;
 };
 
 export type SalesInvoiceItem = {
@@ -84,6 +86,8 @@ export async function fetchRecentSalesInvoices(limit = 0): Promise<SalesInvoice[
     "title",
     "set_warehouse",
     "territory",
+    "customer_address",
+    "address_display",
   ]);
   // docstatus=1 → Submitted (approved) invoices only; exclude Cancelled.
   const filters = JSON.stringify([
@@ -98,6 +102,50 @@ export async function fetchRecentSalesInvoices(limit = 0): Promise<SalesInvoice[
   });
   const data = await erpFetch(`/api/resource/Sales Invoice?${params.toString()}`);
   return (data?.data ?? []) as SalesInvoice[];
+}
+
+export type PaymentEntry = {
+  name: string;
+  posting_date: string;
+  party?: string | null;
+  payment_type: "Receive" | "Pay" | "Internal Transfer";
+  paid_amount?: number;
+  received_amount?: number;
+  unallocated_amount?: number;
+};
+
+export async function fetchPaymentEntries(): Promise<PaymentEntry[]> {
+  const params = new URLSearchParams({
+    fields: JSON.stringify(["name", "posting_date", "party", "payment_type", "paid_amount", "received_amount", "unallocated_amount"]),
+    filters: JSON.stringify([["docstatus", "=", 1]]),
+    order_by: "posting_date desc",
+    limit_page_length: "0",
+  });
+  const data = await erpFetch(`/api/resource/Payment Entry?${params.toString()}`);
+  return (data?.data ?? []) as PaymentEntry[];
+}
+
+export type GeoPoint = { address: string; lat: number; lng: number; state: string };
+
+export async function geocodeAddresses(addresses: string[]): Promise<Map<string, GeoPoint>> {
+  const lovableKey = process.env.LOVABLE_API_KEY;
+  const mapsKey = process.env.GOOGLE_MAPS_API_KEY;
+  const result = new Map<string, GeoPoint>();
+  if (!lovableKey || !mapsKey) return result;
+  for (const address of addresses.slice(0, 60)) {
+    const response = await fetch(`https://connector-gateway.lovable.dev/google_maps/maps/api/geocode/json?address=${encodeURIComponent(address)}`, {
+      headers: { Authorization: `Bearer ${lovableKey}`, "X-Connection-Api-Key": mapsKey },
+    });
+    if (!response.ok) continue;
+    const body = await response.json() as { results?: { formatted_address?: string; geometry?: { location?: { lat?: number; lng?: number } }; address_components?: { long_name?: string; types?: string[] }[] }[] };
+    const first = body.results?.[0];
+    const lat = first?.geometry?.location?.lat;
+    const lng = first?.geometry?.location?.lng;
+    if (typeof lat !== "number" || typeof lng !== "number") continue;
+    const state = first?.address_components?.find((part) => part.types?.includes("administrative_area_level_1"))?.long_name ?? "Unknown state";
+    result.set(address, { address: first?.formatted_address ?? address, lat, lng, state });
+  }
+  return result;
 }
 
 export async function fetchSalesInvoiceItems(invoiceNames: string[]): Promise<SalesInvoiceItem[]> {
