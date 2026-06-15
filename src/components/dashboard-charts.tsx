@@ -54,7 +54,7 @@ export function CustomerActivityChart() {
   );
 }
 
-export type ForecastRow = { center: string; monthlyDemand: number; onHand: number; coverageDays: number | null; reorderQty: number };
+export type ForecastRow = { center: string; sku: string; product: string; unitsSold90Days: number; monthlyDemand: number; onHand: number; coverageDays: number | null; reorderQty: number };
 
 export function InventoryForecastChart({ data }: { data?: ForecastRow[] }) {
   if (!data || data.length === 0) {
@@ -70,9 +70,9 @@ export function InventoryForecastChart({ data }: { data?: ForecastRow[] }) {
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-        <XAxis dataKey="center" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
+        <XAxis dataKey="sku" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
         <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} tickLine={false} axisLine={false} />
-        <Tooltip contentStyle={tooltipStyle} />
+        <Tooltip contentStyle={tooltipStyle} labelFormatter={(_, payload) => payload?.[0]?.payload ? `${payload[0].payload.product} · ${payload[0].payload.center}` : ""} />
         <Legend wrapperStyle={{ fontSize: 11 }} iconType="circle" />
         <Area type="monotone" dataKey="monthlyDemand" name="Forecast monthly demand" stroke="var(--brand-green)" strokeWidth={2} fill="url(#forecastFill)" />
         <Area type="monotone" dataKey="onHand" name="Current stock" stroke="var(--brand-navy)" strokeWidth={2.5} fill="transparent" />

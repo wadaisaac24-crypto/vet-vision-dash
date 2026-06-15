@@ -7,6 +7,8 @@ const ClientMap = lazy(() =>
 
 interface Props {
   variant?: "compact" | "full";
+  centers?: { region: string; sales: number }[];
+  customers?: { id: string; name: string; center: string; address: string; state: string; lat: number; lng: number; type: "new" | "returning"; sales: number; orders: number }[];
 }
 
 function MapFallback({ variant = "compact" }: Props) {

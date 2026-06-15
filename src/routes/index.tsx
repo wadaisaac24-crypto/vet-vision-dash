@@ -15,7 +15,8 @@ import {
   CustomerActivityChart,
   InventoryForecastChart,
 } from "@/components/dashboard-charts";
-import { InventoryTable } from "@/components/inventory-table";
+import { CenterInventory } from "@/components/center-inventory";
+import { Button } from "@/components/ui/button";
 import {
   kpis,
   formatNaira,
@@ -45,6 +46,14 @@ function OverviewPage() {
   const newCustomers = live ? live.newCustomersThisWeek : kpis.newCustomers.value;
   const oosByCenter = live?.outOfStockByCenter ?? [];
   const alerts = live?.alerts ?? [];
+  const overviewForecast = live ? live.forecast.reduce<{ center: string; sku: string; product: string; unitsSold90Days: number; monthlyDemand: number; onHand: number; coverageDays: number | null; reorderQty: number }[]>((rows, item) => {
+    const existing = rows.find((row) => row.center === item.center);
+    if (existing) { existing.unitsSold90Days += item.unitsSold90Days; existing.monthlyDemand += item.monthlyDemand; existing.onHand += item.onHand; existing.reorderQty += item.reorderQty; }
+    else rows.push({ center: item.center, sku: item.center.replace(/ Distribution Center/g, ""), product: item.center, unitsSold90Days: item.unitsSold90Days, monthlyDemand: item.monthlyDemand, onHand: item.onHand, coverageDays: null, reorderQty: item.reorderQty });
+    return rows;
+  }, []) : [];
+  const threeMonthTarget = 250_000_000;
+  const targetProgress = Math.min(100, ((live?.totalRevenueMtd ?? 0) / threeMonthTarget) * 100);
 
   const lastUpdated = dataUpdatedAt
     ? new Date(dataUpdatedAt).toLocaleTimeString("en-NG", { hour: "2-digit", minute: "2-digit", second: "2-digit" })
@@ -144,7 +153,7 @@ function OverviewPage() {
               Open full map <ExternalLink className="h-3 w-3" />
             </a>
           </div>
-          <AfricaMap variant="compact" />
+          <AfricaMap variant="compact" centers={live?.partnerSalesByRegion} customers={live?.customerLocations} />
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5">
@@ -203,19 +212,17 @@ function OverviewPage() {
           <div className="mb-4 flex items-center justify-between">
             <div>
               <h2 className="text-base font-semibold text-foreground">Inventory Status</h2>
-              <p className="text-xs text-muted-foreground">
-                {live ? "Live from ERP Stock Balance report" : "Critical SKUs across all centers"}
-              </p>
+              <p className="text-xs text-muted-foreground">Top 10 priority products, separated by center and ordered by stock risk.</p>
             </div>
           </div>
-          <InventoryTable rows={live?.inventory} />
+          <CenterInventory rows={live?.inventory.slice(0, 10)} />
         </div>
 
         <div className="rounded-xl border border-border bg-card p-5">
           <h2 className="text-base font-semibold text-foreground">Inventory Forecasting</h2>
-          <p className="text-xs text-muted-foreground">7-week demand projection (cartons)</p>
+          <p className="text-xs text-muted-foreground">90-day sales demand summarized for the eight centers</p>
           <div className="mt-3">
-            <InventoryForecastChart data={live?.forecast} />
+            <InventoryForecastChart data={overviewForecast} />
           </div>
         </div>
       </section>
@@ -233,24 +240,15 @@ function OverviewPage() {
                 Auto-generated
               </span>
             </div>
-            <p className="mt-3 text-sm leading-relaxed text-brand-navy-foreground/85">
-              Today's network revenue is <strong className="text-brand-green">{formatNaira(totalSalesToday)}</strong>
-              {live ? ` from ${live.invoiceCountToday} invoices` : ""} — outstanding receivables sit at{" "}
-              <strong>{formatNaira(live?.outstandingTotal ?? 0)}</strong>. Top performing zone is{" "}
-              <strong>{live?.partnerSalesByRegion[0]?.region ?? "Lagos"}</strong>. {outOfStockCount > 0 ? (
-                <>Currently <strong className="text-warn">{outOfStockCount}</strong> SKUs are at zero stock — recommend immediate replenishment from the Abuja DC.</>
-              ) : (
-                <>All centers are healthy on stock.</>
-              )} New customer acquisition this week: <strong>{newCustomers}</strong>.
-            </p>
+            <p className="mt-3 text-sm leading-relaxed text-brand-navy-foreground/85">Month-to-date revenue is <strong className="text-brand-green">{formatNaira(live?.totalRevenueMtd ?? 0)}</strong>, {live?.mtdVsLastMonthPercent === null || live?.mtdVsLastMonthPercent === undefined ? "with no prior-month baseline yet" : `${Math.abs(live.mtdVsLastMonthPercent)}% ${live.mtdVsLastMonthPercent >= 0 ? "ahead of" : "behind"} last month's full performance`}. The June–August goal is <strong>{formatNaira(threeMonthTarget)}</strong>; current MTD revenue represents <strong>{targetProgress.toFixed(1)}%</strong> of that target. Management should prioritize collections on <strong>{formatNaira(live?.accounting.totalReceivables ?? 0)}</strong> in receivables, replenish the <strong className="text-warn">{outOfStockCount}</strong> zero-stock SKUs with proven 90-day demand, and assign weekly partner-recovery targets to underperforming centers. Protect the momentum in <strong>{live?.partnerSalesByRegion[0]?.region ?? "the leading center"}</strong>, convert new partners into repeat buyers, and review target progress every week.</p>
             <div className="mt-4 flex flex-wrap gap-2">
-              <button className="inline-flex items-center gap-1.5 rounded-md bg-brand-green px-3 py-1.5 text-xs font-semibold text-brand-green-foreground hover:opacity-90">
+              <Button size="sm" className="bg-brand-green text-brand-green-foreground hover:bg-brand-green/90">
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Trigger replenishment
-              </button>
-              <button className="inline-flex items-center rounded-md border border-brand-navy-foreground/30 px-3 py-1.5 text-xs font-medium text-brand-navy-foreground hover:bg-white/5">
+              </Button>
+              <Button size="sm" variant="outline" className="border-brand-navy-foreground/30 bg-transparent text-brand-navy-foreground hover:bg-brand-navy-foreground/10 hover:text-brand-navy-foreground">
                 Brief operations team
-              </button>
+              </Button>
             </div>
           </div>
         </div>
