@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { TopBar } from "@/components/top-bar";
+import logoAsset from "@/assets/farm-alert-command-logo.jpeg.asset.json";
 
 function NotFoundComponent() {
   return (
@@ -86,6 +87,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/fa5db587-03a1-4d94-b289-e3efac8c5b2a/id-preview-c4677a13--74872ea2-ad2b-4b9b-9b5c-dcfa90b94083.lovable.app-1781221086685.png" },
     ],
     links: [
+      { rel: "icon", href: logoAsset.url },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
